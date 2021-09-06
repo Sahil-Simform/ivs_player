@@ -1,0 +1,10 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # not reasonable
+    avoid_print: false
+
+    # for constants.dart String.fromEnvironment bug
+    # https://github.com/flutter/flutter/issues/55870
+    unnecessary_const: false
