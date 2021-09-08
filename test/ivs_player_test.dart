@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ivs_player/ivs_player.dart';
 
 void main() {
   const MethodChannel channel = MethodChannel('ivs_player');
@@ -15,9 +14,5 @@ void main() {
 
   tearDown(() {
     channel.setMockMethodCallHandler(null);
-  });
-
-  test('getPlatformVersion', () async {
-    expect(await IvsPlayer.platformVersion, '42');
   });
 }

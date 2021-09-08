@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-
-import 'package:flutter/services.dart';
 import 'package:ivs_player/ivs_player.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(MyApp());
@@ -14,33 +12,44 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
+  bool isPlaying = false;
+  bool isAddressVisible = true;
+  IvsController? controller;
+  String url = '';
+  TextEditingController urlController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    initPlatformState();
+  initialize(IvsController controller) async {
+    setState(() {
+      this.controller = controller;
+    });
+
+    final preferences = await SharedPreferences.getInstance();
+    final url = await preferences.getString('url');
+    if (url != null) {
+      urlController.text = url;
+      controller.load(url);
+    }
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await IvsPlayer.platformVersion ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
-
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
-    if (!mounted) return;
-
+  saveAndLoadUrl() async {
+    final uri = Uri.parse(urlController.text);
+    await controller?.load('$uri');
     setState(() {
-      _platformVersion = platformVersion;
+      isAddressVisible = false;
+    });
+
+    final preferences = await SharedPreferences.getInstance();
+    preferences.setString('url', '$uri');
+  }
+
+  void togglePlay() {
+    if (isPlaying) {
+      controller?.pause();
+    } else {
+      controller?.play();
+    }
+    setState(() {
+      isPlaying = !isPlaying;
     });
   }
 
@@ -48,13 +57,47 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Plugin example app'),
-        ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
-        ),
-      ),
+          body: Stack(children: [
+            Center(
+                child: IvsPlayer(
+              onControllerCreated: initialize,
+            )),
+            Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: isAddressVisible
+                      ? Container(
+                          color: Colors.white,
+                          height: 60,
+                          child: Row(children: [
+                            Expanded(
+                                child: TextField(
+                              style: TextStyle(fontSize: 20),
+                              controller: urlController,
+                            )),
+                            ElevatedButton(
+                              onPressed: saveAndLoadUrl,
+                              child: Text("OK"),
+                            )
+                          ]),
+                        )
+                      : GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            setState(() {
+                              isAddressVisible = !isAddressVisible;
+                            });
+                          },
+                          child: SizedBox(height: 60),
+                        ),
+                ))
+          ]),
+          floatingActionButton: FloatingActionButton(
+            child: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+            onPressed: togglePlay,
+          )),
     );
   }
 }
