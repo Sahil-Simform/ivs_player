@@ -42,6 +42,7 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger) {
         override fun getView() = view
 
         override fun dispose() {
+          this@IvsManager.dispose()
           playerView = null
         }
       }
@@ -67,6 +68,12 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger) {
       }
       field = value
     }
+
+  fun dispose() {
+    methodChannel.setMethodCallHandler(null)
+    eventSink?.endOfStream()
+    eventChannel.setStreamHandler(null)
+  }
 
   private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
     try {
