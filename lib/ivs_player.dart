@@ -29,9 +29,17 @@ class Rebuffer extends IvsEvent {}
 class NetworkBecameUnavailable extends IvsEvent {}
 
 class IvsController {
+  IvsController({required this.id})
+      : _channel = MethodChannel("ivs_player:$id"),
+        _eventChannel = EventChannel("ivs_event:$id") {
+    eventStream.drain();
+    _getState();
+  }
+
   final int id;
   final MethodChannel _channel;
   final EventChannel _eventChannel;
+
   Stream get eventStream {
     final transformer =
         StreamTransformer.fromHandlers(handleData: _transformData);
@@ -41,19 +49,6 @@ class IvsController {
   final state = ValueNotifier<IvsState>(IvsState.idle);
   final position = ValueNotifier<Duration>(Duration.zero);
   final duration = ValueNotifier<Duration>(Duration.zero);
-
-  IvsController({required this.id})
-      : _channel = MethodChannel("ivs_player:$id"),
-        _eventChannel = EventChannel("ivs_event:$id") {
-    // final channel = EventChannel("ivs_event:$id");
-    // eventStream = channel.receiveBroadcastStream().transform(transformer);
-    // _consume(eventStream);
-    // eventStream.drain();
-  }
-
-  Future<void> _consume(Stream stream) async {
-    await for (final value in stream) {}
-  }
 
   Future<void> load(String src) {
     return _channel.invokeMethod('load', {"src": src});
@@ -75,6 +70,11 @@ class IvsController {
     return await _channel.invokeMethod('get_duration');
   }
 
+  /// It receives the state from event channel.
+  Future<void> _getState() {
+    return _channel.invokeMethod('get_state');
+  }
+
   void _transformData(data, EventSink sink) {
     print(data);
     final type = data?['type'];
@@ -86,9 +86,7 @@ class IvsController {
         sink.add(Failed(data['error']));
         break;
       case 'state_changed':
-        final value = IvsState.values
-            .firstWhere((element) => describeEnum(element) == data['state']);
-        state.value = value;
+        state.value = _stringToState(data['state']);
         break;
       case 'sought_to':
         position.value = Duration(milliseconds: data['position']);
@@ -105,6 +103,12 @@ class IvsController {
       default:
         sink.addError('Unknown event type: $type');
     }
+  }
+
+  IvsState _stringToState(String code) {
+    final value =
+        IvsState.values.firstWhere((element) => describeEnum(element) == code);
+    return value;
   }
 }
 

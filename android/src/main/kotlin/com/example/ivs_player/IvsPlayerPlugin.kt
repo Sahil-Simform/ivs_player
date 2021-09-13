@@ -17,8 +17,7 @@ class IvsPlayerPlugin : FlutterPlugin {
       .registerViewFactory("ivs_player",
         object : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
           override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-            val manager = IvsManager(viewId, binding.binaryMessenger)
-            manager.context = context
+            val manager = IvsManager(viewId, binding.binaryMessenger, context)
             managers.add(manager)
 
             return manager.platformView
