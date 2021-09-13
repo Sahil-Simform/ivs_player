@@ -8,12 +8,6 @@ import 'package:flutter/services.dart';
 
 class IvsEvent {}
 
-class DurationChanged extends IvsEvent {
-  final Duration duration;
-
-  DurationChanged(this.duration);
-}
-
 class Failed extends IvsEvent {
   final String error;
 
@@ -28,42 +22,37 @@ enum IvsState {
   ended,
 }
 
-class StateChanged extends IvsEvent {
-  final IvsState state;
+class QualityChanged extends IvsEvent {}
 
-  StateChanged(this.state);
-
-  @override
-  String toString() {
-    return 'StateChanged(state: $state)';
-  }
-}
-
-class SoughtTo extends IvsEvent {
-  final Duration position;
-
-  SoughtTo(this.position);
-}
-
-class WillRebuffer extends IvsEvent {}
+class Rebuffer extends IvsEvent {}
 
 class NetworkBecameUnavailable extends IvsEvent {}
 
 class IvsController {
   final int id;
   final MethodChannel _channel;
-  late final Stream eventStream;
-
-  IvsState get state => _state;
-  IvsState _state = IvsState.idle;
-
-  IvsController({required this.id})
-      : _channel = MethodChannel("ivs_player:$id") {
-    final channel = EventChannel("ivs_event:$id");
+  final EventChannel _eventChannel;
+  Stream get eventStream {
     final transformer =
         StreamTransformer.fromHandlers(handleData: _transformData);
-    eventStream = channel.receiveBroadcastStream().transform(transformer);
-    eventStream.drain();
+    return _eventChannel.receiveBroadcastStream().transform(transformer);
+  }
+
+  final state = ValueNotifier<IvsState>(IvsState.idle);
+  final position = ValueNotifier<Duration>(Duration.zero);
+  final duration = ValueNotifier<Duration>(Duration.zero);
+
+  IvsController({required this.id})
+      : _channel = MethodChannel("ivs_player:$id"),
+        _eventChannel = EventChannel("ivs_event:$id") {
+    // final channel = EventChannel("ivs_event:$id");
+    // eventStream = channel.receiveBroadcastStream().transform(transformer);
+    // _consume(eventStream);
+    // eventStream.drain();
+  }
+
+  Future<void> _consume(Stream stream) async {
+    await for (final value in stream) {}
   }
 
   Future<void> load(String src) {
@@ -87,10 +76,11 @@ class IvsController {
   }
 
   void _transformData(data, EventSink sink) {
+    print(data);
     final type = data?['type'];
     switch (type) {
       case 'duration_changed':
-        sink.add(DurationChanged(Duration(milliseconds: data['duration'])));
+        duration.value = Duration(milliseconds: data['duration']);
         break;
       case 'fail':
         sink.add(Failed(data['error']));
@@ -98,17 +88,19 @@ class IvsController {
       case 'state_changed':
         final value = IvsState.values
             .firstWhere((element) => describeEnum(element) == data['state']);
-        _state = value;
-        sink.add(StateChanged(value));
+        state.value = value;
         break;
       case 'sought_to':
-        sink.add(SoughtTo(Duration(milliseconds: data['position'])));
+        position.value = Duration(milliseconds: data['position']);
         break;
-      case 'will_rebuffer':
-        sink.add(WillRebuffer());
+      case 'rebuffer':
+        sink.add(Rebuffer());
         break;
       case 'network_became_unavailable':
         sink.add(NetworkBecameUnavailable());
+        break;
+      case 'quality_changed':
+        sink.add(QualityChanged());
         break;
       default:
         sink.addError('Unknown event type: $type');

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:ivs_player/ivs_player.dart';
@@ -16,26 +18,28 @@ class _MyAppState extends State<MyApp> {
   IvsController? controller;
 
   initialize(IvsController controller) async {
-    subscribe(controller.eventStream);
+    controller.state.addListener(_rebuild);
     setState(() {
       this.controller = controller;
     });
   }
 
-  Future<void> subscribe(Stream stream) async {
-    await for (final event in stream) {
-      if (event is StateChanged) {
-        setState(() {});
-      }
-    }
-  }
-
   void togglePlay() {
-    if (controller?.state == IvsState.playing) {
+    if (controller?.state.value == IvsState.playing) {
       controller?.pause();
     } else {
       controller?.play();
     }
+  }
+
+  @override
+  void deactivate() {
+    controller?.state.removeListener(_rebuild);
+    super.deactivate();
+  }
+
+  void _rebuild() {
+    setState(() {});
   }
 
   @override
@@ -52,7 +56,7 @@ class _MyAppState extends State<MyApp> {
               Center(child: CircularProgressIndicator()),
           ]),
           floatingActionButton: FloatingActionButton(
-            child: controller?.state == IvsState.playing
+            child: controller?.state.value == IvsState.playing
                 ? Icon(Icons.pause)
                 : Icon(Icons.play_arrow),
             onPressed: togglePlay,
@@ -73,16 +77,33 @@ class UrlBar extends StatefulWidget {
 class _UrlBarState extends State<UrlBar> {
   bool isAddressVisible = true;
   TextEditingController urlController = TextEditingController();
+  StreamSubscription? _subscription;
   ScaffoldFeatureController<MaterialBanner, MaterialBannerClosedReason>? banner;
 
   @override
   void initState() {
     super.initState();
     loadUrl();
+    subscribe(widget.controller);
 
     SchedulerBinding.instance!.addPostFrameCallback((_) {
       toggle();
     });
+  }
+
+  @override
+  void didUpdateWidget(UrlBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.controller != widget.controller) {
+      unsubscribe(oldWidget.controller);
+      subscribe(widget.controller);
+    }
+  }
+
+  @override
+  void deactivate() {
+    super.deactivate();
   }
 
   void toggle() {
@@ -96,7 +117,7 @@ class _UrlBarState extends State<UrlBar> {
   void open() {
     final banner =
         ScaffoldMessenger.of(context).showMaterialBanner(MaterialBanner(
-            content: Container(
+            content: SafeArea(
               child: Container(
                 color: Colors.white,
                 height: 60,
@@ -107,9 +128,11 @@ class _UrlBarState extends State<UrlBar> {
               ),
             ),
             actions: [
-          ElevatedButton(
-            onPressed: saveAndLoadUrl,
-            child: Text("Open"),
+          SafeArea(
+            child: ElevatedButton(
+              onPressed: saveAndLoadUrl,
+              child: Text("Open"),
+            ),
           ),
         ]));
     setState(() {
@@ -133,27 +156,34 @@ class _UrlBarState extends State<UrlBar> {
     }
   }
 
-  @override
-  void didUpdateWidget(UrlBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      final controller = widget.controller;
-      if (controller != null) {
-        subscribeIvsEvent(controller.eventStream);
-      }
+  void subscribe(IvsController? controller) {
+    if (controller == null) {
+      return;
     }
+
+    controller.duration.addListener(_showDuration);
+    _subscription = controller.eventStream.listen(_showError);
   }
 
-  subscribeIvsEvent(Stream<dynamic> stream) async {
-    await for (final event in stream) {
-      print(event);
-      if (event is DurationChanged) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("duration: ${event.duration}")));
-      } else if (event is Failed) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Failed: ${event.error}")));
-      }
+  void unsubscribe(IvsController? controller) {
+    if (controller == null) {
+      return;
+    }
+
+    controller.duration.removeListener(_showDuration);
+    _subscription?.cancel();
+    _subscription = null;
+  }
+
+  void _showDuration() {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("duration: ${widget.controller?.duration.value}")));
+  }
+
+  void _showError(dynamic event) {
+    if (event is Failed) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Failed: ${event.error}")));
     }
   }
 

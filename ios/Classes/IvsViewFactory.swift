@@ -53,7 +53,7 @@ class IvsEventSink: NSObject, FlutterStreamHandler, IVSPlayer.Delegate {
     }
     
     func playerWillRebuffer(_ player: IVSPlayer) {
-        post(["type": "will_rebuffer"])
+        post(["type": "rebuffer"])
     }
     
     func playerNetworkDidBecomeUnavailable(_ player: IVSPlayer) {

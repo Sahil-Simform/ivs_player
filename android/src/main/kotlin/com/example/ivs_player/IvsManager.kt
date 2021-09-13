@@ -25,7 +25,9 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger) {
 
   var context: Context? = null
     set(value) {
-      playerView = value?.let { PlayerView(it) }
+      playerView = value?.let {
+        PlayerView(it).apply { controlsEnabled = false }
+      }
       field = value
     }
 
@@ -62,7 +64,7 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger) {
 
   private var listener: IvsEventListener? = null
     set(value) {
-      playerView?.player?.let { player ->
+      player?.let { player ->
         field?.let { player.removeListener(it) }
         value?.let { player.addListener(it) }
       }

@@ -11,42 +11,52 @@ internal class IvsEventListener(private val sink: EventChannel.EventSink) : Play
   override fun onDurationChanged(newDuration: Long) {
     sink.success(mapOf(
       "type" to "duration_changed",
-      "new_duration" to newDuration,
+      "duration" to newDuration,
     ))
   }
 
   override fun onStateChanged(newState: Player.State) {
+    val state = newState.name.lowercase()
     sink.success(mapOf(
       "type" to "state_changed",
-      "state" to newState.name.lowercase(),
+      "state" to state,
     ))
   }
 
   override fun onError(exception: PlayerException) {
     exception.apply {
       sink.error("$code", errorMessage, mapOf(
+        "type" to "$errorType",
         "code" to code,
-        "type" to errorType,
         "message" to message,
         "source" to source,
-        "stack" to stackTraceToString()
+        "stack" to stackTraceToString(),
       ))
     }
   }
 
   override fun onRebuffering() {
-    sink.success(mapOf("type" to "rebuffering"))
+    sink.success(mapOf("type" to "rebuffer"))
   }
 
-  override fun onSeekCompleted(p0: Long) {
-    sink.success(mapOf("type" to "seek_completed"))
+  override fun onSeekCompleted(position: Long) {
+    sink.success(mapOf("type" to "seek_completed", "position" to position))
   }
 
   override fun onVideoSizeChanged(p0: Int, p1: Int) {
-    sink.success(mapOf("type" to "video_size_changed"))
+    // use onQualityChanged instead
   }
 
-  override fun onQualityChanged(p0: Quality) {
-    sink.success(mapOf("type" to "quality_changed"))
+  override fun onQualityChanged(quality: Quality) {
+    sink.success(mapOf("type" to "quality_changed", "quality" to quality.run {
+      mapOf(
+        "bitrate" to bitrate,
+        "codecs" to codecs,
+        "framerate" to framerate,
+        "heigth" to height,
+        "name" to name,
+        "width" to width,
+      )
+    }))
   }
 }
