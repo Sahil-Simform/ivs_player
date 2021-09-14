@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:ivs_player/ivs_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ivs_player/mod.dart';
 
 void main() {
   runApp(MyApp());
@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
   }
 
   void togglePlay() {
-    if (controller?.state.value == IvsState.playing) {
+    if (controller?.state.value == PlayerState.playing) {
       controller?.pause();
     } else {
       controller?.play();
@@ -52,11 +52,11 @@ class _MyAppState extends State<MyApp> {
               alignment: Alignment.topCenter,
               child: UrlBar(controller: controller),
             ),
-            if (controller?.state == IvsState.buffering)
+            if (controller?.state == PlayerState.buffering)
               Center(child: CircularProgressIndicator()),
           ]),
           floatingActionButton: FloatingActionButton(
-            child: controller?.state.value == IvsState.playing
+            child: controller?.state.value == PlayerState.playing
                 ? Icon(Icons.pause)
                 : Icon(Icons.play_arrow),
             onPressed: togglePlay,

@@ -52,8 +52,8 @@ internal class IvsEventListener(private val sink: EventChannel.EventSink) : Play
       mapOf(
         "bitrate" to bitrate,
         "codecs" to codecs,
-        "framerate" to framerate,
-        "heigth" to height,
+        "frame_rate" to framerate,
+        "height" to height,
         "name" to name,
         "width" to width,
       )

@@ -60,6 +60,13 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
   private fun transferState() {
     val listener = this.listener ?: return
     listener.onStateChanged(player.state)
+    if (player.duration != 0L) {
+      listener.onDurationChanged(player.duration)
+      listener.onSeekCompleted(player.position)
+    }
+    if (player.quality.bitrate != 0) {
+      listener.onQualityChanged(player.quality)
+    }
   }
 
   private var eventSink: EventChannel.EventSink? = null
