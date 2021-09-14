@@ -70,13 +70,14 @@ class IvsController {
         sink.add(NetworkBecameUnavailable());
         break;
       case 'quality_changed':
+        final value = data['quality'];
         quality.value = Quality(
-          bitrate: data['bitrate'],
-          width: data['width'],
-          height: data['height'],
-          frameRate: data['frame_rate'],
-          name: data['name'],
-          codecs: data['codecs'],
+          bitrate: value['bitrate'],
+          width: value['width'],
+          height: value['height'],
+          frameRate: value['frame_rate'],
+          name: value['name'],
+          codecs: value['codecs'],
         );
         break;
       default:

@@ -17,6 +17,9 @@ class IvsPlayer extends StatefulWidget {
 }
 
 class _IvsPlayerState extends State<IvsPlayer> {
+  static const String _viewType = 'ivs_player';
+
+  final GlobalKey _androidKey = GlobalKey();
   IvsController? controller;
 
   @override
@@ -28,10 +31,17 @@ class _IvsPlayerState extends State<IvsPlayer> {
     }
   }
 
-  void createController(int id) async {
+  @override
+  void dispose() {
+    controller?.quality.removeListener(_rebuild);
+    super.dispose();
+  }
+
+  void _createController(int id) async {
     final controller = IvsController(id: id);
     final src = widget.src;
     this.controller = controller;
+    controller.quality.addListener(_rebuild);
     widget.onControllerCreated?.call(controller);
 
     if (src != null) {
@@ -39,43 +49,65 @@ class _IvsPlayerState extends State<IvsPlayer> {
     }
   }
 
+  void _rebuild() {
+    setState(() {});
+  }
+
+  PlatformViewLink _buildAndroidPlatformView(
+      Map<String, dynamic> creationParams) {
+    return PlatformViewLink(
+      key: _androidKey,
+      viewType: _viewType,
+      surfaceFactory: (
+        BuildContext context,
+        PlatformViewController controller,
+      ) {
+        return AndroidViewSurface(
+          controller: controller as AndroidViewController,
+          gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+          hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+        );
+      },
+      onCreatePlatformView: (PlatformViewCreationParams params) {
+        return PlatformViewsService.initSurfaceAndroidView(
+          id: params.id,
+          viewType: _viewType,
+          layoutDirection: TextDirection.ltr,
+          creationParams: creationParams,
+          creationParamsCodec: const StandardMessageCodec(),
+        )
+          ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+          ..addOnPlatformViewCreatedListener(_createController)
+          ..create();
+      },
+    );
+  }
+
+  Widget _buildAndroidView(Map<String, dynamic> creationParams) {
+    final quality = controller?.quality.value;
+    if (quality == null || quality.height == 0) {
+      return _buildAndroidPlatformView(creationParams);
+    }
+
+    return AspectRatio(
+      aspectRatio: quality.width / quality.height,
+      child: _buildAndroidPlatformView(creationParams),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const viewType = 'ivs_player';
     final creationParams = <String, dynamic>{};
 
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        return PlatformViewLink(
-          viewType: viewType,
-          surfaceFactory:
-              (BuildContext context, PlatformViewController controller) {
-            return AndroidViewSurface(
-              controller: controller as AndroidViewController,
-              gestureRecognizers: const <
-                  Factory<OneSequenceGestureRecognizer>>{},
-              hitTestBehavior: PlatformViewHitTestBehavior.opaque,
-            );
-          },
-          onCreatePlatformView: (PlatformViewCreationParams params) {
-            return PlatformViewsService.initSurfaceAndroidView(
-              id: params.id,
-              viewType: viewType,
-              layoutDirection: TextDirection.ltr,
-              creationParams: creationParams,
-              creationParamsCodec: const StandardMessageCodec(),
-            )
-              ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
-              ..addOnPlatformViewCreatedListener(createController)
-              ..create();
-          },
-        );
+        return _buildAndroidView(creationParams);
       case TargetPlatform.iOS:
         return UiKitView(
-          viewType: viewType,
+          viewType: _viewType,
           creationParams: creationParams,
           creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: createController,
+          onPlatformViewCreated: _createController,
         );
       default:
         return Text(
