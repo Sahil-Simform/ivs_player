@@ -5,18 +5,20 @@ import android.net.*
 import android.view.*
 import com.amazonaws.ivs.player.*
 import io.flutter.plugin.common.*
-import io.flutter.plugin.platform.*
 import io.flutter.view.*
 
 internal class FlutterIvsPlayer(
-  id: Int,
   messenger: BinaryMessenger,
+  texture: TextureRegistry.SurfaceTextureEntry,
   context: Context,
 ) {
+  val id = texture.id()
+  var isPaused = false
+
   private val methodChannel = MethodChannel(messenger, "ivs_player:$id")
   private val eventChannel = EventChannel(messenger, "ivs_event:$id")
-  val surfaceView = SurfaceView(context)
-  val player = Player.Factory.create(context).apply { setSurface(surfaceView.holder.surface) }
+  val surface = Surface(texture.surfaceTexture())
+  val player = Player.Factory.create(context).apply { setSurface(surface) }
 
   init {
     methodChannel.setMethodCallHandler(this::onMethodCall)
@@ -32,22 +34,12 @@ internal class FlutterIvsPlayer(
     })
   }
 
-  val platformView: PlatformView
-    get() {
-      return object : PlatformView {
-        override fun getView() = surfaceView
-
-        override fun dispose() {
-          this@FlutterIvsPlayer.dispose()
-        }
-      }
-    }
-
   fun dispose() {
     methodChannel.setMethodCallHandler(null)
     eventSink?.endOfStream()
     eventChannel.setStreamHandler(null)
     player.release()
+    surface.release()
   }
 
   private fun transferState() {

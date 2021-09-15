@@ -17,10 +17,16 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   IvsController? controller;
 
-  initialize(IvsController controller) async {
-    controller.state.addListener(_rebuild);
-    setState(() {
-      this.controller = controller;
+  @override
+  void initState() {
+    super.initState();
+
+    SchedulerBinding.instance?.addPostFrameCallback((_) async {
+      final controller = await IvsController.create();
+      controller.state.addListener(_rebuild);
+      setState(() {
+        this.controller = controller;
+      });
     });
   }
 
@@ -44,10 +50,13 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final controller = this.controller;
+
     return MaterialApp(
       home: Scaffold(
           body: Stack(children: [
-            Center(child: IvsPlayer(onControllerCreated: initialize)),
+            if (controller != null)
+              Center(child: IvsPlayer(controller: controller)),
             Align(
               alignment: Alignment.topCenter,
               child: UrlBar(controller: controller),

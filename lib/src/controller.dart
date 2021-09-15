@@ -6,10 +6,17 @@ import 'package:flutter/services.dart';
 import 'package:ivs_player/src/types.dart';
 
 class IvsController {
-  IvsController({required this.id})
+  IvsController._({required this.id})
       : _channel = MethodChannel("ivs_player:$id"),
         _eventChannel = EventChannel("ivs_event:$id") {
     eventStream.drain();
+  }
+
+  static const _mainChannel = MethodChannel("ivs_player");
+
+  static Future<IvsController> create() async {
+    final id = await _mainChannel.invokeMethod("create") as int;
+    return IvsController._(id: id);
   }
 
   final int id;
@@ -48,7 +55,7 @@ class IvsController {
   }
 
   Future<void> dispose() async {
-    return _channel.invokeMethod("dispose", id);
+    return _mainChannel.invokeMethod("dispose", id);
   }
 
   void _transformData(data, EventSink sink) {
