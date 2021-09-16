@@ -6,12 +6,17 @@ import android.view.*
 import com.amazonaws.ivs.player.*
 import io.flutter.plugin.common.*
 import io.flutter.plugin.platform.*
+import io.flutter.view.*
 
-internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context) {
+internal class FlutterIvsPlayer(
+  id: Int,
+  messenger: BinaryMessenger,
+  context: Context,
+) {
   private val methodChannel = MethodChannel(messenger, "ivs_player:$id")
   private val eventChannel = EventChannel(messenger, "ivs_event:$id")
-  private val surfaceView = SurfaceView(context)
-  private val player = Player.Factory.create(context)
+  val surfaceView = SurfaceView(context)
+  val player = Player.Factory.create(context).apply { setSurface(surfaceView.holder.surface) }
 
   init {
     methodChannel.setMethodCallHandler(this::onMethodCall)
@@ -25,19 +30,6 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
         eventSink = null
       }
     })
-
-    surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
-      override fun surfaceCreated(holder: SurfaceHolder) {
-        player.setSurface(holder.surface)
-      }
-
-      override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-      }
-
-      override fun surfaceDestroyed(holder: SurfaceHolder) {
-        player.setSurface(null)
-      }
-    })
   }
 
   val platformView: PlatformView
@@ -46,7 +38,7 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
         override fun getView() = surfaceView
 
         override fun dispose() {
-          this@IvsManager.dispose()
+          this@FlutterIvsPlayer.dispose()
         }
       }
     }
@@ -55,6 +47,7 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
     methodChannel.setMethodCallHandler(null)
     eventSink?.endOfStream()
     eventChannel.setStreamHandler(null)
+    player.release()
   }
 
   private fun transferState() {
@@ -83,14 +76,6 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
     }
 
   private fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-    try {
-      handleCall(call, result)
-    } catch (exception: Exception) {
-      result.error("unknown_exception", "Native code threw", exception)
-    }
-  }
-
-  private fun handleCall(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
       "load" -> {
         val url = call.argument("src") as? String
@@ -99,7 +84,7 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
             player.load(uri)
             result.success(null)
           }
-          else -> result.error("invalid_argument", "Provided url is not valid", null)
+          else -> result.error("invalid_argument", "Provided url is not valid: $url", null)
         }
       }
       "play" -> {
@@ -121,6 +106,10 @@ internal class IvsManager(id: Int, messenger: BinaryMessenger, context: Context)
       }
       "get_duration" -> {
         result.success(player.duration)
+      }
+      "dispose" -> {
+        dispose()
+        result.success(null)
       }
       else -> {
         result.notImplemented()

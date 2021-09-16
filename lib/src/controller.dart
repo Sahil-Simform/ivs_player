@@ -47,10 +47,16 @@ class IvsController {
     return await _channel.invokeMethod('get_duration');
   }
 
+  Future<void> dispose() async {
+    return _channel.invokeMethod("dispose", id);
+  }
+
   void _transformData(data, EventSink sink) {
     print(data);
     final type = data?['type'];
     switch (type) {
+      case 'cue':
+        break;
       case 'duration_changed':
         duration.value = Duration(milliseconds: data['duration']);
         break;

@@ -4,8 +4,8 @@ import com.amazonaws.ivs.player.*
 import io.flutter.plugin.common.*
 
 internal class IvsEventListener(private val sink: EventChannel.EventSink) : Player.Listener() {
-  override fun onCue(p0: Cue) {
-    sink.success(mapOf("type" to "cue"))
+  override fun onCue(cue: Cue) {
+    sink.success(mapOf("type" to "cue", "startTime" to cue.startTime, "endTime" to cue.endTime))
   }
 
   override fun onDurationChanged(newDuration: Long) {
